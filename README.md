@@ -122,10 +122,10 @@ project/
 
 | Name | Student ID | Role |
 |------|-----------|------|
-| Sara |           | Team Leader |
-| Member 2 |       | PCB & Input Manager |
-| Member 3 |       | Thread & Memory Manager |
-| Member 4 |       | Scheduling & Output |
+| Sara |           | Team Leader, PCB & Input Manager |
+| Member 2 |       | Thread & Memory Manager |
+| Member 3 |       | Scheduling Algorithms Engineer |
+| Member 4 |       | Output & Metrics Engineer |
 
 ---
 
@@ -133,10 +133,10 @@ project/
 
 | Member | Responsibility |
 |--------|--------------|
-| Sara | Integration, review, coordination |
-| Member 2 | Input handling, PCB creation |
-| Member 3 | Threading, memory, queues |
-| Member 4 | Scheduling logic, output, metrics |
+| Sara | Repository setup, input file handling, PCB creation, job queue initialization, integration and final review |
+| Member 2 | Thread implementation, memory management (2048 MB), job queue to ready queue transfer |
+| Member 3 | Implement SJF, Round Robin, and Priority scheduling, starvation detection, and aging |
+| Member 4 | Gantt chart generation, process table output, waiting & turnaround time calculation, performance metrics |
 
 ---
 
