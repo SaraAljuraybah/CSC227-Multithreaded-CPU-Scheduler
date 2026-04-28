@@ -4,6 +4,7 @@ import model.PCB;
 import java.util.*;
 import threads.JobReaderThread;
 import threads.LoaderThread;
+import scheduling.Scheduler;
 
 public class Main {
 
@@ -50,5 +51,15 @@ public class Main {
                 p.printProcess();
             }
         }
+     Scanner scanner = new Scanner(System.in);
+System.out.println("\nChoose Scheduling Algorithm:");
+System.out.println("  1. Shortest Job First (SJF)");
+System.out.println("  2. Round Robin (RR, q=5ms)");
+System.out.println("  3. Priority Scheduling (Non-Preemptive)");
+System.out.print("Enter choice: ");
+int choice = scanner.nextInt();
+
+Scheduler scheduler = new Scheduler(readyQueue);
+scheduler.run(choice);   
     }
 }
