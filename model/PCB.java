@@ -1,15 +1,16 @@
 package model;
+
 public class PCB {
 
-    int processID;
-    int burstTime;
-    int priority;
-    int memory;
+    private int processID;
+    private int burstTime;
+    private int priority;
+    private int memory;
 
-    int waitingTime;
-    int turnaroundTime;
+    private int waitingTime;
+    private int turnaroundTime;
 
-    String state;
+    private String state;
 
     public PCB(int processID, int burstTime, int priority, int memory) {
         this.processID = processID;
@@ -22,10 +23,43 @@ public class PCB {
         this.state = "NEW";
     }
 
+    public int getProcessID() {
+        return processID;
+    }
+
+    public int getBurstTime() {
+        return burstTime;
+    }
+
+    public int getPriority() {
+        return priority;
+    }
+
+    public int getMemory() {
+        return memory;
+    }
+
+    public int getWaitingTime() {
+        return waitingTime;
+    }
+
+    public int getTurnaroundTime() {
+        return turnaroundTime;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
     public void printProcess() {
         System.out.println("Process " + processID +
                 " | Burst: " + burstTime +
                 " | Priority: " + priority +
-                " | Memory: " + memory);
+                " | Memory: " + memory +
+                " | State: " + state);
     }
 }
