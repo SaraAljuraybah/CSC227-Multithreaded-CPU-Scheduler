@@ -39,9 +39,9 @@ public class LoaderThread extends Thread {
                 System.out.println("Moved Process " + process.getProcessID() + " to Ready Queue");
 
             } else {
-                System.out.println("Not enough memory for Process " + process.getProcessID());
-                break; // نوقف إذا ما فيه مساحة
-            }
+    System.out.println("Not enough memory for Process " + process.getProcessID() + " — skipping");
+    jobQueue.poll(); 
+}
         }
 
         System.out.println("Loader Thread finished.");
