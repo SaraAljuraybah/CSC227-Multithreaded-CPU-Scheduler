@@ -1,12 +1,10 @@
-package scheduler;
-package scheduling;
+package scheduling; 
 
 import model.PCB;
 
 import java.util.*;
 
 /**
- *
  *  Supported algorithms
  *  ─────────────────────
  *  1. Shortest Job First   (SJF)  – Non-preemptive
@@ -17,13 +15,10 @@ import java.util.*;
  *  ────────────────────────────────────
  *  Input  : Queue<PCB> readyQueue   (filled by LoaderThread – Member 2)
  *  Output : Console only            (Gantt chart + table + metrics)
- *  PCB    : Uses existing getters; only adds remainingTime field via
- *           PCB.setRemainingTime() / PCB.getRemainingTime() – see PCB note.
  *
- *  How to call (from Main.java – see integration snippet at bottom of file):
+ *  How to call (from Main.java):
  *      Scheduler scheduler = new Scheduler(readyQueue);
  *      scheduler.run(1);   // 1=SJF  2=RR  3=Priority
- * ============================================================
  */
 public class Scheduler {
 
@@ -32,21 +27,16 @@ public class Scheduler {
     private static final int AGING_INTERVAL = 4;   // ms  (Priority aging tick)
 
     // ── Internal helpers ─────────────────────────────────────
-
-    /**
-     * Lightweight snapshot used during scheduling so we never mutate
-     * the original PCB fields that other members depend on.
-     */
     private static class ProcessInfo {
         final PCB    pcb;
-        final int    originalBurst;   // never changes
-        int          remaining;       // mutable: burst left
-        int          arrivalOrder;    // position in readyQueue (tie-break)
-        int          startTime  = -1; // first time on CPU
+        final int    originalBurst;
+        int          remaining;
+        int          arrivalOrder;
+        int          startTime  = -1;
         int          endTime    =  0;
         int          waitTime   =  0;
-        int          priority;        // may change due to aging
-        int          waitedSince = 0; // for starvation clock
+        int          priority;
+        int          waitedSince = 0;
 
         ProcessInfo(PCB pcb, int order) {
             this.pcb           = pcb;
@@ -57,7 +47,6 @@ public class Scheduler {
         }
     }
 
-    /** One slice in the Gantt chart */
     private record GanttSlice(int pid, int start, int end) {}
 
     // ── State ─────────────────────────────────────────────────
@@ -66,15 +55,10 @@ public class Scheduler {
     // ─────────────────────────────────────────────────────────
     //  Constructor
     // ─────────────────────────────────────────────────────────
-
-    /**
-     * @param readyQueue  the queue produced by LoaderThread (Member 2).
-     *                    Processes are NOT removed from the original queue.
-     */
     public Scheduler(Queue<PCB> readyQueue) {
         processes = new ArrayList<>();
         int order = 0;
-        for (PCB p : readyQueue) {           // iterate without removing
+        for (PCB p : readyQueue) {
             processes.add(new ProcessInfo(p, order++));
         }
     }
@@ -82,19 +66,12 @@ public class Scheduler {
     // ─────────────────────────────────────────────────────────
     //  Public entry point
     // ─────────────────────────────────────────────────────────
-
-    /**
-     * Run the chosen scheduling algorithm and print all output.
-     *
-     * @param choice  1 = SJF  |  2 = Round Robin  |  3 = Priority
-     */
     public void run(int choice) {
         if (processes.isEmpty()) {
             System.out.println("Ready queue is empty – nothing to schedule.");
             return;
         }
 
-        // Reset mutable fields before each run (supports multiple calls)
         for (ProcessInfo pi : processes) {
             pi.remaining   = pi.originalBurst;
             pi.startTime   = -1;
@@ -115,18 +92,16 @@ public class Scheduler {
     // =========================================================
     //  ALGORITHM 1 – Shortest Job First (Non-preemptive)
     // =========================================================
-
     private void runSJF() {
         System.out.println("\n╔══════════════════════════════════════╗");
         System.out.println("║   Scheduling Algorithm: SJF          ║");
         System.out.println("╚══════════════════════════════════════╝");
 
         List<GanttSlice>  gantt     = new ArrayList<>();
-        List<ProcessInfo> remaining = new ArrayList<>(processes);  // not-yet-executed
+        List<ProcessInfo> remaining = new ArrayList<>(processes);
         int time = 0;
 
         while (!remaining.isEmpty()) {
-            // Pick process with smallest burst; break ties by arrival order
             ProcessInfo chosen = remaining.stream()
                 .min(Comparator.comparingInt((ProcessInfo pi) -> pi.originalBurst)
                                .thenComparingInt(pi -> pi.arrivalOrder))
@@ -134,7 +109,7 @@ public class Scheduler {
 
             chosen.startTime = time;
             chosen.endTime   = time + chosen.originalBurst;
-            chosen.waitTime  = time;                    // started at 'time', arrived at 0
+            chosen.waitTime  = time;
             time             = chosen.endTime;
 
             gantt.add(new GanttSlice(chosen.pcb.getProcessID(), chosen.startTime, chosen.endTime));
@@ -147,21 +122,19 @@ public class Scheduler {
     // =========================================================
     //  ALGORITHM 2 – Round Robin (q = 5 ms)
     // =========================================================
-
     private void runRR() {
         System.out.println("\n╔══════════════════════════════════════╗");
         System.out.println("║   Scheduling Algorithm: Round Robin  ║");
         System.out.println("║   Time Quantum = " + TIME_QUANTUM + " ms              ║");
         System.out.println("╚══════════════════════════════════════╝");
 
-        List<GanttSlice>        gantt  = new ArrayList<>();
-        Queue<ProcessInfo>      queue  = new LinkedList<>(processes);  // preserves arrival order
+        List<GanttSlice>   gantt  = new ArrayList<>();
+        Queue<ProcessInfo> queue  = new LinkedList<>(processes);
         int time = 0;
 
         while (!queue.isEmpty()) {
             ProcessInfo pi = queue.poll();
 
-            // Record first time on CPU
             if (pi.startTime == -1) pi.startTime = time;
 
             int slice = Math.min(TIME_QUANTUM, pi.remaining);
@@ -171,10 +144,10 @@ public class Scheduler {
             pi.remaining   -= slice;
 
             if (pi.remaining > 0) {
-                queue.add(pi);   // re-enqueue
+                queue.add(pi);
             } else {
                 pi.endTime  = time;
-                pi.waitTime = pi.endTime - pi.originalBurst;  // turnaround - burst
+                pi.waitTime = pi.endTime - pi.originalBurst;
             }
         }
 
@@ -184,72 +157,69 @@ public class Scheduler {
     // =========================================================
     //  ALGORITHM 3 – Non-Preemptive Priority with Aging
     // =========================================================
-
     private void runPriority() {
         System.out.println("\n╔══════════════════════════════════════╗");
         System.out.println("║  Scheduling Algorithm: Priority      ║");
         System.out.println("║  (Non-Preemptive + Aging)            ║");
         System.out.println("╚══════════════════════════════════════╝");
 
-        List<GanttSlice>  gantt         = new ArrayList<>();
-        List<ProcessInfo> pending       = new ArrayList<>(processes);  // not yet finished
-        List<String>      starvLog      = new ArrayList<>();           // starvation events
-        Set<Integer>      starvedPIDs   = new LinkedHashSet<>();       // PIDs that starved
+        List<GanttSlice>  gantt       = new ArrayList<>();
+        List<ProcessInfo> pending     = new ArrayList<>(processes);
+        List<String>      starvLog    = new ArrayList<>();
+        Set<Integer>      starvedPIDs = new LinkedHashSet<>();
 
         int time           = 0;
         int N              = pending.size();
-        int starvThreshold = N * 5;                   // N × 5 ms
+        int starvThreshold = N * 5;
 
-        // initialise starvation clocks
         for (ProcessInfo pi : pending) pi.waitedSince = 0;
 
-        while (!pending.isEmpty()) {
+         int lastAgingTime = 0;
 
-            // ── Aging pass (every AGING_INTERVAL ms) ──────────
-            if (time > 0 && time % AGING_INTERVAL == 0) {
-                for (ProcessInfo pi : pending) {
-                    int waited = time - pi.waitedSince;
-                    if (waited >= starvThreshold) {
-                        // mark as starved (first time only)
-                        if (starvedPIDs.add(pi.pcb.getProcessID())) {
-                            starvLog.add(String.format(
-                                "  ⚠  Process P%d detected as STARVED at t=%d ms (waited %d ms, threshold=%d ms)",
-                                pi.pcb.getProcessID(), time, waited, starvThreshold));
-                        }
+        while (!pending.isEmpty()) {
+         
+           while (lastAgingTime + AGING_INTERVAL <= time) {
+                lastAgingTime += AGING_INTERVAL;   
+                
+               for (ProcessInfo pi : pending) {
+                    int waited = lastAgingTime - pi.waitedSince;
+                         if (waited >= starvThreshold) {
+                         
+                         String msg = String.format(
+                                "  ⚠  Process P%d detected as STARVED at t=%d ms " +
+                                "(waited %d ms, threshold=%d ms)",
+                                pi.pcb.getProcessID(), lastAgingTime, waited, starvThreshold);
+                            starvLog.add(msg);
+                            System.out.println(msg);  
+                              }
                     }
-                    // Age: decrease priority number every AGING_INTERVAL ms
-                    if (pi.priority > 1) {
+                       
+                        if (pi.priority > 1) {
                         pi.priority--;
-                        starvLog.add(String.format(
+                        String msg = String.format(
                             "  ↑  Process P%d priority improved to %d at t=%d ms (aging)",
-                            pi.pcb.getProcessID(), pi.priority, time));
-                    }
+                            pi.pcb.getProcessID(), pi.priority, lastAgingTime);
+                        starvLog.add(msg);
+                        System.out.println(msg); 
+                            }
                 }
             }
 
-            // ── Pick highest priority (smallest number); tie → arrival order ──
+            // Pick highest priority (smallest number); tie → arrival order
             ProcessInfo chosen = pending.stream()
                 .min(Comparator.comparingInt((ProcessInfo pi) -> pi.priority)
                                .thenComparingInt(pi -> pi.arrivalOrder))
                 .orElseThrow();
 
-            chosen.startTime  = time;
-            chosen.endTime    = time + chosen.originalBurst;
-            chosen.waitTime   = time;                  // arrived at 0
-            time              = chosen.endTime;
-
-            // Update starvation clock for remaining processes
-            for (ProcessInfo pi : pending) {
-                if (pi != chosen) {
-                    // waitedSince stays; we measure from the last reset
-                }
-            }
+            chosen.startTime = time;
+            chosen.endTime   = time + chosen.originalBurst;
+            chosen.waitTime  = time;
+            time             = chosen.endTime;
 
             gantt.add(new GanttSlice(chosen.pcb.getProcessID(), chosen.startTime, chosen.endTime));
             pending.remove(chosen);
 
-            // Reset waitedSince for all still-waiting processes when a new CPU burst begins
-            // (so we measure waiting time from *last dispatch event*, matching the spec)
+            // Reset starvation clock for remaining processes from this dispatch point
             for (ProcessInfo pi : pending) pi.waitedSince = time;
         }
 
@@ -271,15 +241,6 @@ public class Scheduler {
     // =========================================================
     //  OUTPUT – shared by all algorithms
     // =========================================================
-
-    /**
-     * Prints Gantt chart, process table, and performance metrics.
-     *
-     * @param algoName    display name of the algorithm
-     * @param gantt       list of Gantt slices in execution order
-     * @param showAging   true → print aging/starvation log
-     * @param agingLog    lines describing starvation/aging events
-     */
     private void printResults(String algoName,
                               List<GanttSlice> gantt,
                               boolean showAging,
@@ -292,8 +253,8 @@ public class Scheduler {
         StringBuilder botBar  = new StringBuilder();
 
         for (GanttSlice s : gantt) {
-            String label  = " P" + s.pid + " ";
-            int    width  = Math.max(label.length(), String.valueOf(s.end).length() + 1);
+            String label  = " P" + s.pid() + " ";
+            int    width  = Math.max(label.length(), String.valueOf(s.end()).length() + 1);
             label         = centerPad(label, width);
 
             topBar .append("+").append("─".repeat(width));
@@ -304,12 +265,11 @@ public class Scheduler {
         labels.append("|");
         botBar.append("+");
 
-        // Time markers under the chart
         StringBuilder times = new StringBuilder();
         times.append(gantt.get(0).start());
         for (GanttSlice s : gantt) {
-            String t      = String.valueOf(s.end);
-            int    width  = Math.max((" P" + s.pid + " ").length(), t.length() + 1);
+            String t      = String.valueOf(s.end());
+            int    width  = Math.max((" P" + s.pid() + " ").length(), t.length() + 1);
             times.append(" ".repeat(width - t.length() + 1)).append(t);
         }
 
@@ -325,13 +285,12 @@ public class Scheduler {
         }
 
         // ── 3. Build per-process results ──────────────────────
-        // For RR we need to aggregate first-start and last-end from Gantt slices
         Map<Integer, Integer> firstStart = new LinkedHashMap<>();
         Map<Integer, Integer> lastEnd    = new LinkedHashMap<>();
 
         for (GanttSlice s : gantt) {
-            firstStart.putIfAbsent(s.pid, s.start);
-            lastEnd.put(s.pid, s.end);
+            firstStart.putIfAbsent(s.pid(), s.start());
+            lastEnd.put(s.pid(), s.end());
         }
 
         // ── 4. Process Table ──────────────────────────────────
@@ -348,8 +307,8 @@ public class Scheduler {
             int start = firstStart.getOrDefault(pid, 0);
             int end   = lastEnd  .getOrDefault(pid, 0);
             int burst = pi.originalBurst;
-            int wt    = start;                 // all arrive at t=0
-            int tat   = end;                   // end - arrival(0)
+            int wt    = start;
+            int tat   = end;
 
             totalWT  += wt;
             totalTAT += tat;
@@ -368,8 +327,6 @@ public class Scheduler {
     // ─────────────────────────────────────────────────────────
     //  Utility
     // ─────────────────────────────────────────────────────────
-
-    /** Centre-pads a string to the given width. */
     private static String centerPad(String s, int width) {
         int pad   = width - s.length();
         int left  = pad / 2;
@@ -380,24 +337,12 @@ public class Scheduler {
 
 /*
  * ═══════════════════════════════════════════════════════════════
- *  PCB.java NOTE  (for Member 1 – Sara)
- * ───────────────────────────────────────────────────────────────
- *  No changes to PCB are required.
- *  The Scheduler keeps all mutable state in its own ProcessInfo
- *  wrapper, so PCB is never modified at runtime.
- * ═══════════════════════════════════════════════════════════════
- *
- *
- * ═══════════════════════════════════════════════════════════════
  *  Main.java INTEGRATION  (add after the Ready Queue is printed)
  * ───────────────────────────────────────────────────────────────
  *
  *  import scheduling.Scheduler;
  *  import java.util.Scanner;
  *
- *  // … existing Thread 1 and Thread 2 code …
- *
- *  // ── Let user choose scheduling algorithm ──────────────
  *  Scanner scanner = new Scanner(System.in);
  *  System.out.println("\nChoose Scheduling Algorithm:");
  *  System.out.println("  1. Shortest Job First (SJF)");
@@ -406,7 +351,6 @@ public class Scheduler {
  *  System.out.print("Enter choice: ");
  *  int choice = scanner.nextInt();
  *
- *  // ── Run scheduler on the readyQueue ───────────────────
  *  Scheduler scheduler = new Scheduler(readyQueue);
  *  scheduler.run(choice);
  *
